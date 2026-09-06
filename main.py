@@ -90,6 +90,9 @@ if __name__ == "__main__":
 
         logger.debug("(Waited %.1fs)" % wait_time)
 
+    # Set when the queue handler thread is started, so clean_stop() can wait for it
+    queue_handler_thread = None
+
     def clean_stop(tray_icon=None):
         # Turn screen and LEDs off before stopping
         display.turn_off()
@@ -100,6 +103,14 @@ if __name__ == "__main__":
 
         # Waiting for all pending request to be sent to display
         wait_for_empty_queue(5)
+
+        # Wait for the queue handler to stop before closing: a request still being sent would
+        # fail on the closed port, and WriteLine() reopens the port when that happens
+        if queue_handler_thread is not None:
+            queue_handler_thread.join(timeout=1)
+
+        # Close the communication with the display before the os._exit() below
+        display.close()
 
         # Remove tray icon just before exit
         if tray_icon:
@@ -221,7 +232,7 @@ if __name__ == "__main__":
 
     # Start serial queue handler
     if not args.theme_screenshots:
-        scheduler.QueueHandler()
+        queue_handler_thread = scheduler.QueueHandler()
 
     # Create all static images
     display.display_static_images()
