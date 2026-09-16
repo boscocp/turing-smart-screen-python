@@ -301,3 +301,40 @@ STATS:
         FONT_COLOR: 128, 255, 255
         BACKGROUND_IMAGE: background.png
         ANCHOR: mt  # Text is centered (needs fixed WIDTH)
+
+  # Adicionado a mao: FPS do jogo (RTSS) e consumo da GPU.
+  # As duas classes estao em library/sensors/sensors_custom.py.
+  # Ambas usam WIDTH/HEIGHT fixos de proposito: com a caixa fixa a area e repintada com o
+  # fundo a cada refresh, entao o FPS some sozinho quando o jogo fecha.
+  CUSTOM:
+    INTERVAL: 1
+
+    # FPS do jogo, na maior area escura do fundo (centro-inferior, entre os radiais de RAM e VRAM).
+    # Caixa x 181-305, y 254-280: nao encosta em nenhum pixel claro do background.png.
+    GameFps:
+      TEXT:
+        SHOW: True
+        SHOW_UNIT: False  # a unidade ja vem dentro da string ("FPS 121")
+        X: 181
+        Y: 254
+        WIDTH: 124
+        HEIGHT: 26
+        FONT: roboto-mono/RobotoMono-Bold.ttf
+        FONT_SIZE: 28
+        FONT_COLOR: 255, 0, 173
+        BACKGROUND_IMAGE: background.png
+
+    # Consumo da GPU, logo abaixo do radial de uso da GPU (que termina em y 190) e deslocado
+    # para a esquerda. Caixa x 312-372, y 193-211: acima do radial de VRAM, que comeca em y 219.
+    GpuPower:
+      TEXT:
+        SHOW: True
+        SHOW_UNIT: False  # a unidade ja vem dentro da string ("195 W")
+        X: 312
+        Y: 193
+        WIDTH: 60
+        HEIGHT: 18
+        FONT: generale-mono/GeneraleMonoA.ttf
+        FONT_SIZE: 16
+        FONT_COLOR: 128, 255, 255
+        BACKGROUND_IMAGE: background.png
