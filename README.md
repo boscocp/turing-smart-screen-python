@@ -1,5 +1,13 @@
 # ![Icon](https://raw.githubusercontent.com/mathoudebine/turing-smart-screen-python/main/res/icons/monitor-icon-17865/24.png) turing-smart-screen-python
 
+> [!NOTE]
+>
+> **Fork do Adalberto.** Esta `main` tem o fix do travamento da tela ao desligar
+> o PC ([issue #907](https://github.com/mathoudebine/turing-smart-screen-python/issues/907) /
+> [PR #1082](https://github.com/mathoudebine/turing-smart-screen-python/pull/1082)) e o meu
+> setup pessoal. Para instalar numa máquina nova ou depois de formatar o Windows:
+> **[meu-setup/README.md](./meu-setup/README.md)**.
+
 > [!WARNING]
 > 
 > This project is **not affiliated, associated, authorized, endorsed by, or in any way officially connected with Turing / XuanFang / Kipye brands**, or any of theirs subsidiaries, affiliates, manufacturers or sellers of their products. All product and company names are the registered trademarks of their original owners.
