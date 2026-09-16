@@ -136,18 +136,45 @@ propósito — nunca commite uma chave aqui, o repositório é público.
 ### O que o tema tem de customizado
 
 O `theme.yaml` é editado à mão e **não existe em nenhuma revisão do projeto
-original** — se perder, só dá para recuperar daqui (ou do tema
-`LandscapeMagicBlueCustom`, que tem a mesma customização). As mudanças:
+original** — se perder, só dá para recuperar daqui. (O tema
+`LandscapeMagicBlueCustom` tem a mesma troca CPU/temperatura, mas **não** tem o
+bloco `STATS.CUSTOM`: ele é do Linux, onde não há RTSS.) As mudanças:
 
 - **uso da CPU** movido para o slot pequeno da esquerda (texto);
 - **temperatura da CPU** promovida para o radial central (era o uso), com
   `MIN_VALUE: 20` e `INTERVAL: 5 → 2`;
 - **data e hora** no topo com fonte `RobotoMono-Bold`, hora maior (18) e
-  reposicionadas.
+  reposicionadas;
+- **FPS do jogo e consumo da GPU** no bloco `STATS.CUSTOM` (veja abaixo).
 
 Para reverter ao original: `RADIAL.SHOW` de `CPU.PERCENTAGE` para `True` e
 `RADIAL.SHOW` de `CPU.TEMPERATURE` para `False` (os blocos originais estão
 comentados no arquivo).
+
+#### FPS do jogo e consumo da GPU
+
+Duas fontes de dados customizadas em `library/sensors/sensors_custom.py` —
+esse arquivo é versionado normalmente, não tem `skip-worktree`:
+
+| Classe | Onde aparece | De onde vem o dado |
+| --------- | --------------------------------------- | ------------------------------- |
+| `GameFps` | centro-inferior, em magenta e negrito | memória compartilhada do RTSS |
+| `GpuPower` | abaixo do radial de uso da GPU, à esquerda | `SensorType.Power` do LHM |
+
+O **FPS depende do RTSS estar no ar** — quem o sobe aqui é o MSI Afterburner.
+Sem RTSS o contador simplesmente não aparece, nada quebra. Sem jogo aberto a
+área fica limpa: as duas caixas têm `WIDTH`/`HEIGHT` fixos no tema, então são
+repintadas com o fundo a cada refresh em vez de congelar o último valor.
+
+O **consumo** sai do LibreHardwareMonitor que o programa já tem carregado, sem
+chamar `Update()` de novo (o job de GPU já atualiza aquele mesmo objeto a cada
+segundo). Fora do modo admin, ou com `HW_SENSORS` que não carregue o LHM, ele
+cai sozinho para o `nvidia-smi`.
+
+> ⚠️ Ao mexer nessas coordenadas, **confira antes contra o `background.png`**.
+> O fundo é um HUD desenhado e texto por cima da parte clara fica ilegível. As
+> caixas atuais (`181,254 124x26` e `312,193 60x18`) foram medidas pixel a
+> pixel e não encostam em nada claro.
 
 Cópias extras fora do repositório: `D:\projetos-vscode\turing-config-backup\` e
 `OneDrive\Documentos\theme.yaml`.
