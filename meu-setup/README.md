@@ -106,6 +106,10 @@ vazarem para um PR upstream:
 | `config.yaml`                             | `meu-setup/config.yaml`               |
 | `res/themes/LandscapeMagicBlue/theme.yaml` | `meu-setup/theme-LandscapeMagicBlue.yaml` |
 
+> ⚠️ O `config.yaml` **commitado** na raiz desta branch é o da máquina **Linux**
+> (veja [A outra máquina](#a-outra-máquina-linuxcachyos)). O do Windows é o
+> `meu-setup/config.yaml` — é ele que o `instalar.ps1` copia para o lugar.
+
 Conferir a proteção:
 
 ```powershell
@@ -132,7 +136,8 @@ propósito — nunca commite uma chave aqui, o repositório é público.
 ### O que o tema tem de customizado
 
 O `theme.yaml` é editado à mão e **não existe em nenhuma revisão do projeto
-original** — se perder, não dá para recuperar do upstream. As mudanças:
+original** — se perder, só dá para recuperar daqui (ou do tema
+`LandscapeMagicBlueCustom`, que tem a mesma customização). As mudanças:
 
 - **uso da CPU** movido para o slot pequeno da esquerda (texto);
 - **temperatura da CPU** promovida para o radial central (era o uso), com
@@ -146,6 +151,25 @@ comentados no arquivo).
 
 Cópias extras fora do repositório: `D:\projetos-vscode\turing-config-backup\` e
 `OneDrive\Documentos\theme.yaml`.
+
+---
+
+## A outra máquina: Linux (CachyOS)
+
+O fork já trazia, de 07/09/2026, o setup do mesmo painel 3.5" rev A no desktop
+CachyOS — está nesta `main` e continua valendo:
+
+- **`res/themes/LandscapeMagicBlueCustom/`** — tema versionado normalmente (sem
+  `skip-worktree`), com a mesma troca CPU/temperatura do tema do Windows e
+  `DISPLAY_SIZE` explícito para calar o warning. É a cópia mais fácil de
+  recuperar se o `theme.yaml` customizado se perder.
+- **`config.yaml`** (raiz, commitado) — parâmetros do Linux:
+  `COM_PORT: /dev/ttyACM0`, `HW_SENSORS: PYTHON` (o LibreHardwareMonitor é só
+  Windows), `ETH: enp14s0`, `WLO: wlan0`, `DISPLAY_REVERSE: true`.
+
+No Linux não existe tarefa agendada nem atalho: nada do `instalar.ps1` se
+aplica. Lá é `python main.py` (ou um serviço systemd de usuário) com o venv
+criado do mesmo `requirements.txt`, e `HW_SENSORS: PYTHON` dispensa root.
 
 ---
 
