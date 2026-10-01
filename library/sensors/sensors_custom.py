@@ -25,10 +25,12 @@
 import ctypes
 import math
 import mmap
+import os
 import platform
 import struct
 import subprocess
 import sys
+import time
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
@@ -108,10 +110,13 @@ class ExampleCustomTextOnlyData(CustomDataSource):
         pass
 
 
-# Game FPS, read from the RivaTuner Statistics Server (RTSS) shared memory.
+# Game FPS, read from whichever overlay the platform already runs: the RivaTuner Statistics
+# Server (RTSS) on Windows, MangoHud on Linux.
 #
 # RTSS is what MSI Afterburner uses for its on-screen display, and it publishes one entry per
 # hooked application in a shared memory block. Reading it needs no overlay and costs about 1 ms.
+# MangoHud has no shared memory block, but its CSV log is appended to while the game runs, so
+# reading the last line of it gives the same number the overlay shows.
 #
 # Note: the built-in STATS.GPU.FPS of this project is deliberately NOT used here. It relies on a
 # LibreHardwareMonitor "Factor/FPS" sensor that does not exist on most setups, and stats.py turns
@@ -139,11 +144,37 @@ class GameFps(CustomDataSource):
     TEXT_WIDTH = 7
     MAX_FPS = 999
 
-    # Failures are expected (RTSS not installed, not started yet, non-Windows): log them once only
+    # MangoHud appends one CSV line per log_interval to a file inside its output_folder, and
+    # writes it as the game runs instead of only when logging stops. The folder is taken from
+    # MangoHud's own configuration file so that it stays defined in a single place; re-reading it
+    # on every refresh means a change there is picked up without restarting this program.
+    #
+    # Logging needs output_folder (which MangoHud documents as required for logging, and does not
+    # create), autostart_log, and log_duration=0 so that it does not stop on its own. Note that
+    # autostart_log is a delay in seconds before logging starts, not a boolean.
+    MANGOHUD_CONFIG_FILE = "~/.config/MangoHud/MangoHud.conf"
+
+    # Next to each log MangoHud writes a "<name>_summary.csv" with the averages of a finished run
+    SUMMARY_SUFFIX = "_summary.csv"
+
+    # A log nobody appends to any more means the game is gone. log_interval is in milliseconds, so
+    # any sane value is well below this.
+    STALE_AFTER_S = 3.0
+
+    # Enough to hold the last line of the log whatever the column count
+    TAIL_SIZE = 4096
+
+    # Failures are expected (overlay not installed, or not started yet): log them once only
     read_error_logged = False
 
     def __init__(self):
         self.value = self._read_fps()
+
+    @classmethod
+    def _read_fps(cls) -> float:
+        if sys.platform == "win32":
+            return cls._from_rtss()
+        return cls._from_mangohud()
 
     @classmethod
     def _foreground_pid(cls) -> int:
@@ -158,10 +189,7 @@ class GameFps(CustomDataSource):
             return 0
 
     @classmethod
-    def _read_fps(cls) -> float:
-        if sys.platform != "win32":
-            return math.nan
-
+    def _from_rtss(cls) -> float:
         try:
             # The header has to be read first: it tells where the app array is and how big it is.
             # Mapping more than the real size of the block fails with "Access denied", so the second
@@ -206,6 +234,72 @@ class GameFps(CustomDataSource):
                 cls.read_error_logged = True
                 logger.debug("No game FPS available from RTSS shared memory: %s" % str(e))
             return math.nan
+
+    @classmethod
+    def _mangohud_log_folder(cls) -> Optional[str]:
+        # Same precedence MangoHud itself uses, so pointing it at another config file with
+        # MANGOHUD_CONFIGFILE points this reader at the same one
+        config_file = os.environ.get("MANGOHUD_CONFIGFILE") or os.path.expanduser(cls.MANGOHUD_CONFIG_FILE)
+        try:
+            with open(config_file, "r") as config:
+                for line in config:
+                    key, separator, value = line.partition("=")
+                    if separator and key.strip() == "output_folder" and value.strip():
+                        return os.path.expanduser(value.strip())
+        except OSError:
+            pass
+
+        # Without output_folder, MangoHud picks the folder itself and there is nothing to look at:
+        # say what is missing instead of failing silently.
+        if not cls.read_error_logged:
+            cls.read_error_logged = True
+            logger.debug("No game FPS: MangoHud logging needs output_folder (plus autostart_log "
+                         "and log_duration=0) in %s" % config_file)
+        return None
+
+    @classmethod
+    def _newest_log(cls, folder: str) -> Optional[os.DirEntry]:
+        # One log per game launch, so the most recently written one is the game being played
+        newest = None
+        with os.scandir(folder) as entries:
+            for entry in entries:
+                if not entry.name.endswith(".csv") or entry.name.endswith(cls.SUMMARY_SUFFIX):
+                    continue
+                if newest is None or entry.stat().st_mtime > newest.stat().st_mtime:
+                    newest = entry
+        return newest
+
+    @classmethod
+    def _from_mangohud(cls) -> float:
+        folder = cls._mangohud_log_folder()
+        if folder is None:
+            return math.nan
+
+        try:
+            newest = cls._newest_log(folder)
+            # Either no game was ever logged, or the last one is over and its log went quiet
+            if newest is None or time.time() - newest.stat().st_mtime > cls.STALE_AFTER_S:
+                return math.nan
+
+            with open(newest.path, "rb") as log:
+                log.seek(0, os.SEEK_END)
+                log.seek(max(0, log.tell() - cls.TAIL_SIZE))
+                tail = log.read()
+
+            # The read can catch the file mid-line, so the trailing fragment is dropped and the
+            # last complete line is the one to use. The first field of a data row is the FPS; the
+            # two header rows MangoHud writes first fail the conversion and are skipped.
+            for line in reversed(tail.split(b"\n")[:-1]):
+                try:
+                    return float(line.split(b",")[0])
+                except ValueError:
+                    continue
+        except OSError as e:
+            if not cls.read_error_logged:
+                cls.read_error_logged = True
+                logger.debug("No game FPS available from MangoHud logs: %s" % str(e))
+
+        return math.nan
 
     def as_numeric(self) -> float:
         return self.value

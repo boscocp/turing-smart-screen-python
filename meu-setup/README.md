@@ -137,8 +137,9 @@ propósito — nunca commite uma chave aqui, o repositório é público.
 
 O `theme.yaml` é editado à mão e **não existe em nenhuma revisão do projeto
 original** — se perder, só dá para recuperar daqui. (O tema
-`LandscapeMagicBlueCustom` tem a mesma troca CPU/temperatura, mas **não** tem o
-bloco `STATS.CUSTOM`: ele é do Linux, onde não há RTSS.) As mudanças:
+`LandscapeMagicBlueCustom`, do Linux, tem a mesma troca CPU/temperatura e também
+o bloco `STATS.CUSTOM` — veja [A outra máquina](#a-outra-máquina-linuxcachyos).)
+As mudanças:
 
 - **uso da CPU** movido para o slot pequeno da esquerda (texto);
 - **temperatura da CPU** promovida para o radial central (era o uso), com
@@ -156,10 +157,12 @@ comentados no arquivo).
 Duas fontes de dados customizadas em `library/sensors/sensors_custom.py` —
 esse arquivo é versionado normalmente, não tem `skip-worktree`:
 
-| Classe | Onde aparece | De onde vem o dado |
-| --------- | --------------------------------------- | ------------------------------- |
-| `GameFps` | centro-inferior, em magenta e negrito | memória compartilhada do RTSS |
-| `GpuPower` | abaixo do radial de uso da GPU, à esquerda | `SensorType.Power` do LHM |
+| Classe | Onde aparece | De onde vem o dado (Windows) | De onde vem o dado (Linux) |
+| --------- | ------------------------------ | ----------------------------- | ------------------------ |
+| `GameFps` | centro-inferior, magenta e negrito | memória compartilhada do RTSS | log CSV do MangoHud |
+| `GpuPower` | abaixo do radial de uso da GPU | `SensorType.Power` do LHM | `nvidia-smi` |
+
+As duas classes escolhem a fonte pela plataforma; o tema é igual nos dois lados.
 
 O **FPS depende do RTSS estar no ar** — quem o sobe aqui é o MSI Afterburner.
 Sem RTSS o contador simplesmente não aparece, nada quebra. Sem jogo aberto a
@@ -195,8 +198,50 @@ CachyOS — está nesta `main` e continua valendo:
   Windows), `ETH: enp14s0`, `WLO: wlan0`, `DISPLAY_REVERSE: true`.
 
 No Linux não existe tarefa agendada nem atalho: nada do `instalar.ps1` se
-aplica. Lá é `python main.py` (ou um serviço systemd de usuário) com o venv
-criado do mesmo `requirements.txt`, e `HW_SENSORS: PYTHON` dispensa root.
+aplica. Quem sobe o programa é o serviço de usuário
+`~/.config/systemd/user/turing-smart-screen.service`, com o venv criado do mesmo
+`requirements.txt`; `HW_SENSORS: PYTHON` dispensa root.
+
+```bash
+systemctl --user status turing-smart-screen     # estado
+systemctl --user restart turing-smart-screen    # equivale ao atalho do Windows
+```
+
+### FPS e consumo da GPU no Linux
+
+O mesmo bloco `STATS.CUSTOM` do tema do Windows, com as mesmas coordenadas — o
+`background.png` dos dois temas é byte a byte o mesmo. O que muda é a origem do
+dado, escolhida pela plataforma dentro de `sensors_custom.py`:
+
+- **consumo**: `nvidia-smi` (14 ms por leitura, sem dependência nova). Não
+  precisa de configuração nenhuma.
+- **FPS**: o log do **MangoHud**, que é o equivalente do RTSS aqui. MangoHud não
+  publica memória compartilhada, mas com o log ligado ele vai *acrescentando*
+  uma linha CSV por `log_interval` enquanto o jogo roda — ler a última linha dá
+  o mesmo número que aparece no overlay.
+
+Para o FPS funcionar, três coisas em `~/.config/MangoHud/MangoHud.conf`:
+
+```ini
+output_folder=/home/bosco/mangologs  # a doc marca este como obrigatório para logar
+autostart_log=1                      # delay em SEGUNDOS antes de começar, não um booleano
+log_duration=0                       # sem limite: grava enquanto o jogo estiver aberto
+log_interval=500                     # meio segundo; o display atualiza a cada 1 s
+```
+
+**A pasta tem que existir** (`mkdir -p ~/mangologs`): o MangoHud não a cria e
+falha calado se ela faltar. O programa lê o `output_folder` direto desse
+arquivo, então a pasta fica definida num lugar só.
+
+E o jogo precisa subir **com** MangoHud — `mangohud <jogo>`, ou a opção de
+lançamento `mangohud %command%` na Steam. Sem isso o contador simplesmente não
+aparece, igual a um Windows sem RTSS no ar: a caixa tem `WIDTH`/`HEIGHT` fixos,
+então a área fica limpa em vez de congelar o último valor.
+
+Os logs ficam em `~/mangologs`, um por partida, uns 800 KB por hora de jogo.
+Podem ser apagados a qualquer momento — o programa sempre lê o mais recente, e
+descarta qualquer um parado há mais de 3 s (foi assim que o jogo fechado é
+detectado).
 
 ---
 
