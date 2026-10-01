@@ -198,13 +198,45 @@ CachyOS — está nesta `main` e continua valendo:
   Windows), `ETH: enp14s0`, `WLO: wlan0`, `DISPLAY_REVERSE: true`.
 
 No Linux não existe tarefa agendada nem atalho: nada do `instalar.ps1` se
-aplica. Quem sobe o programa é o serviço de usuário
-`~/.config/systemd/user/turing-smart-screen.service`, com o venv criado do mesmo
+aplica. Quem sobe o programa é um serviço **de usuário** (não de sistema — ele
+precisa da sessão gráfica e do venv do usuário), com o venv criado do mesmo
 `requirements.txt`; `HW_SENSORS: PYTHON` dispensa root.
+
+A cópia mestre da unit está aqui, como os arquivos do Windows:
+**`meu-setup/turing-smart-screen.service`**. Instalar do zero:
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp meu-setup/turing-smart-screen.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now turing-smart-screen
+```
+
+> ⚠️ A unit tem o caminho do repositório escrito nela em três lugares
+> (`WorkingDirectory`, o `ExecStartPre` e o `ExecStart`). Se o clone não estiver
+> em `/home/bosco/turing-smart-screen-python`, ajuste os três.
+
+O que ela resolve, e por isso não é um `python main.py` solto:
+
+- **`ExecStartPre`** espera até 30 s pelo `/dev/ttyACM0`. Depois do boot a tela
+  demora alguns segundos para aparecer como porta serial, e sem essa espera o
+  serviço subiria antes do dispositivo existir.
+- **`PYSTRAY_BACKEND=dummy`** porque o pystray não consegue "dockar" no systray
+  do Wayland e aborta — é o `Failed to dock icon` que aparece no log.
+- **`KillSignal=SIGTERM` + `TimeoutStopSec=20`** dão ao programa o tempo de
+  mandar o `SCREEN_OFF` antes de morrer, que é justamente o fix da PR #1082.
 
 ```bash
 systemctl --user status turing-smart-screen     # estado
 systemctl --user restart turing-smart-screen    # equivale ao atalho do Windows
+journalctl --user -u turing-smart-screen -n 50  # além do log.log na raiz
+```
+
+**Se mexer na unit, copie de volta para cá e commite** — mesma regra do
+`config.yaml` e do tema:
+
+```bash
+cp ~/.config/systemd/user/turing-smart-screen.service meu-setup/
 ```
 
 ### FPS e consumo da GPU no Linux

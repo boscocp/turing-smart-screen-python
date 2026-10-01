@@ -1,0 +1,21 @@
+[Unit]
+Description=Turing Smart Screen 3.5" - monitor de sistema
+Documentation=https://github.com/boscocp/turing-smart-screen-python
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/bosco/turing-smart-screen-python
+# pystray nao consegue "dockar" no systray do Wayland; backend dummy evita o erro
+Environment=PYSTRAY_BACKEND=dummy
+Environment=PYTHONUNBUFFERED=1
+# depois do boot a tela pode levar alguns segundos pra virar /dev/ttyACM0
+ExecStartPre=/usr/bin/bash -c 'for i in $(seq 1 30); do [ -c /dev/ttyACM0 ] && exit 0; sleep 1; done; echo "/dev/ttyACM0 nao apareceu em 30s"; exit 1'
+ExecStart=/home/bosco/turing-smart-screen-python/.venv/bin/python main.py
+Restart=on-failure
+RestartSec=10
+KillSignal=SIGTERM
+TimeoutStopSec=20
+
+[Install]
+WantedBy=default.target
